@@ -345,15 +345,10 @@ class Controller extends ENIP {
     ]);
 
     // Message Router to Embed in UCMM
-    try {
     const data = await this.writeAndWait(
       CIP.MessageRouter.build(GET_ATTRIBUTE_ALL, identityPath, []),
       'Get Attribute All'
     );
-    } catch (err) {
-      console.log('FDAFDFSFDSAFDA', err);
-      throw err;
-    }
 
     // Parse Returned Buffer
     this.state.controller.serial_number = data.readUInt32LE(10);
