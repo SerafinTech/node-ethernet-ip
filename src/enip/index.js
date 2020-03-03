@@ -4,6 +4,7 @@ const encapsulation = require("./encapsulation");
 const CIP = require("./cip");
 const { promiseTimeout } = require("../utilities");
 const { lookup } = require("dns");
+const colors = require('colors');
 
 /**
  * Low Level Ethernet/IP
@@ -255,13 +256,39 @@ class ENIP extends Socket {
       const packet = connected
         ? sendUnitData(session.id, data, connection.id, connection.seq_num)
         : sendRRData(session.id, data, timeout);
-
       if (cb) {
         this.write(packet, cb);
       } else {
         this.write(packet);
       }
     }
+  }
+
+  /**
+   * Write data, then resolve once the specified event fires
+   */
+  writeAndWait(data, event, timeout = 10000) {
+console.log('WRITE/WAIT', event);
+    this.write_cip(data);
+
+    return new Promise((resolve, reject) => {
+      const handle = (err, data) => {
+        clearTimeout(timer);
+        if (err) {
+console.log('ERRRRRRR', err);
+          reject(err);
+        } else {
+          resolve(data);
+        }
+      };
+
+      const timer = setTimeout(() => {
+        this.removeListener(event, handle);
+        reject(new Error(`"${event}" TIMEOUT`));
+      }, timeout);
+
+      this.on(event, handle);
+    });
   }
 
   /**
