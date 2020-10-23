@@ -2,7 +2,7 @@
 
 # Node Ethernet/IP
 
-A simple and lightweight node based API for interfacing with Rockwell Control/CompactLogix PLCs.
+No longer supported use [ST-node-ethernet-ip](https://github.com/SerafinTech/ST-node-ethernet-ip) instead
 
 ## Prerequisites
 
