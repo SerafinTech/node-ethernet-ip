@@ -116,10 +116,10 @@ const generateEncodedTimeout = timeout => {
  * @param {number} [serialOrig=0x1337] - Originator Serial Number (SerNo of the PLC)
  * @returns {Buffer} data portion of the forwardOpen packet
  */
-const build_forwardOpen = (otRPI = 8000, netConnParams = 0x43f4, timeOutMs = 1000 , timeOutMult = 32) => {
+const build_forwardOpen = (otRPI = 8000, netConnParams = 0x43f4, timeOutMs = 1000 , timeOutMult = 32, connectionSerial = 0x4242) => {
     if (timeOutMs <= 900 || typeof timeOutMs !== "number") throw new Error("Timeouts Must be Positive Integers and above 500");
     if (!(timeOutMult in timeOutMultiplier) || typeof timeOutMult !== "number") throw new Error("Timeout Multiplier must be a number and a multiple of 4");
-    if (otRPI <= 8000 || typeof otRPI !== "number") throw new Error("otRPI should be at least 8000 (8ms)");
+    if (otRPI < 8000 || typeof otRPI !== "number") throw new Error("otRPI should be at least 8000 (8ms)");
     if (typeof netConnParams !== "number") throw new Error("ConnectionParams should be created by the builder and result in a number!");
 
     const actualMultiplier = timeOutMultiplier[timeOutMult];
@@ -130,11 +130,11 @@ const build_forwardOpen = (otRPI = 8000, netConnParams = 0x43f4, timeOutMs = 100
     ptr+=1;
     connectionParams.writeUInt8(timeout.ticks,ptr); // Timeout Ticks
     ptr+=1;
-    connectionParams.writeUInt32LE(0x11111111,ptr); // O->T Connection ID
+    connectionParams.writeUInt32LE(getRandomInt(2147483647),ptr); // O->T Connection ID
     ptr+=4;
-    connectionParams.writeUInt32LE(0x22222222,ptr); // T->O Connection ID
+    connectionParams.writeUInt32LE(getRandomInt(2147483647),ptr); // T->O Connection ID
     ptr+=4;
-    connectionParams.writeUInt16LE(0x4242,ptr); // Connection Serial Number TODO: Make this unique
+    connectionParams.writeUInt16LE(connectionSerial,ptr); // Connection Serial Number TODO: Make this unique
     ptr+=2;
     connectionParams.writeUInt16LE(0x3333,ptr); // Originator VendorID
     ptr+=2;
@@ -163,7 +163,7 @@ const build_forwardOpen = (otRPI = 8000, netConnParams = 0x43f4, timeOutMs = 100
  * @param {number} [serialOrig=0x1337] - Originator Serial Number (SerNo of the PLC)
  * @returns {Buffer} data portion of the forwardClose packet
  */
-const build_forwardClose = (timeOutMs = 1000 , vendorOrig = 0x3333, serialOrig = 0x1337) => {
+const build_forwardClose = (timeOutMs = 1000 , vendorOrig = 0x3333, serialOrig = 0x1337, connectionSerial = 0x4242) => {
     if (timeOutMs <= 900 || typeof timeOutMs !== "number") throw new Error("Timeouts Must be Positive Integers and at least 500");
     if (vendorOrig <= 0 || typeof vendorOrig !== "number") throw new Error("VendorOrig Must be Positive Integers");
     if (serialOrig <= 0 || typeof serialOrig !== "number") throw new Error("SerialOrig Must be Positive Integers");
@@ -175,7 +175,7 @@ const build_forwardClose = (timeOutMs = 1000 , vendorOrig = 0x3333, serialOrig =
     ptr+=1;
     connectionParams.writeUInt8(timeout.ticks,ptr); // Timeout Ticks
     ptr+=1;
-    connectionParams.writeUInt16LE(0x4242,ptr); // Connection Serial Number TODO: Make this unique
+    connectionParams.writeUInt16LE(connectionSerial, ptr); // Connection Serial Number TODO: Make this unique
     ptr+=2;
     connectionParams.writeUInt16LE(vendorOrig,ptr); // Originator VendorID
     ptr+=2;
@@ -183,6 +183,10 @@ const build_forwardClose = (timeOutMs = 1000 , vendorOrig = 0x3333, serialOrig =
 
     return connectionParams;
 };
+
+function getRandomInt(max) {
+    return Math.floor(Math.random() * Math.floor(max));
+}
 
 module.exports = { 
     build_forwardOpen,

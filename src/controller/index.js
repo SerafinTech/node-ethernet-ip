@@ -35,12 +35,15 @@ class Controller extends ENIP {
             scanning: false,
             scan_rate: 200, //ms,
             connectedMessaging,
+            timeout_sp: 10000, //ms
+            rpi: 10,
+            fwd_open_serial: 0,
         };
 
         this.workers = {
             read: new Queue(compare),
             write: new Queue(compare),
-            group: new Queue(compare)
+            group: new Queue(compare),
         };
     }
 
@@ -63,6 +66,47 @@ class Controller extends ENIP {
     set scan_rate(rate) {
         if (typeof rate !== "number") throw new Error("scan_rate must be of Type <number>");
         this.state.scan_rate = Math.trunc(rate);
+    }
+
+    /**
+     * Returns the Timeout Setpoint
+     *
+     * @memberof Controller
+     * @returns {number} ms
+     */
+    get timeout_sp() {
+        return this.state.timeout_sp;
+    }
+
+    /**
+     * Sets the Timeout Setpoint
+     *
+     * @memberof Controller
+     */
+    set timeout_sp(sp) {
+        if (typeof sp !== "number") throw new Error("timeout_sp must be of Type <number>");
+        this.state.timeout_sp = Math.trunc(sp);
+    }
+
+    /**
+     * Returns the Rpi
+     *
+     * @memberof Controller
+     * @returns {number} ms
+     */
+    get rpi() {
+        return this.state.rpi;
+    }
+
+    /**
+     * Sets the Rpi
+     *
+     * @memberof Controller
+     */
+    set rpi(sp) {
+        if (typeof sp !== "number") throw new Error("Rpi must be of Type <number>");
+        if (sp < 8) throw new Error("Rpi a minimum of 8ms");
+        this.state.rpi = Math.trunc(sp);
     }
 
     /**
@@ -192,8 +236,8 @@ class Controller extends ENIP {
 
         // Create connection parameters
         const params = CIP.ConnectionManager.build_connectionParameters(owner["Exclusive"], connectionType["PointToPoint"],priority["Low"],fixedVar["Variable"],500);
-
-        const forwardOpenData = CIP.ConnectionManager.build_forwardOpen(10000,params);
+        this.state.fwd_open_serial = getRandomInt(32767)
+        const forwardOpenData = CIP.ConnectionManager.build_forwardOpen(this.state.rpi * 1000, params, 1000 , 32, this.state.fwd_open_serial);
 
         // Build MR Path in order to send the message to the CPU
         const mrPath = Buffer.concat([
@@ -234,7 +278,7 @@ class Controller extends ENIP {
                     resolve(data);
                 });
             }),
-            10000,
+            this.state.timeout_sp,
             readPropsErr
         );
 
@@ -264,7 +308,7 @@ class Controller extends ENIP {
         // Message Router to Embed in UCMM
         const MR = CIP.MessageRouter.build(FORWARD_CLOSE, cmPath, []);
 
-        const forwardCloseData = CIP.ConnectionManager.build_forwardClose();
+        const forwardCloseData = CIP.ConnectionManager.build_forwardClose(1000 , 0x3333, 0x1337, this.state.fwd_open_serial);
 
         // Build MR Path in order to send the message to the CPU
         const mrPath = Buffer.concat([
@@ -304,7 +348,7 @@ class Controller extends ENIP {
                     resolve(data);
                 });
             }),
-            10000,
+            this.state.timeout_sp,
             readPropsErr
         );
 
@@ -375,7 +419,7 @@ class Controller extends ENIP {
                     resolve(data);
                 });
             }),
-            10000,
+            this.state.timeout_sp,
             readPropsErr
         );
 
@@ -443,7 +487,7 @@ class Controller extends ENIP {
                     resolve(data);
                 });
             }),
-            10000,
+            this.state.timeout_sp,
             readPropsErr
         );
 
@@ -513,7 +557,7 @@ class Controller extends ENIP {
                     resolve(data);
                 });
             }),
-            10000,
+            this.state.timeout_sp,
             writeClockErr
         );
 
@@ -651,11 +695,10 @@ class Controller extends ENIP {
 
     async getControllerTagList(tagList, program = null) {
         const getTagListErr = new Error("TIMEOUT occurred while reading tag list");
-
         // Wait for Response
         return await promiseTimeout(
             tagList.getControllerTags(this, program),
-            10000,
+            this.state.timeout_sp * 4,
             getTagListErr
         );   
     }
@@ -672,7 +715,6 @@ class Controller extends ENIP {
         this.on("SendUnitData Received", this._handleSendUnitDataReceived);
     }
 
-    // region Private Methods
     /**
      * Remove Controller Specific Event Handlers
      *
@@ -715,7 +757,7 @@ class Controller extends ENIP {
                     }                    
                 });
             }),
-            10000,
+            this.state.timeout_sp,
             readTagErr
         );
 
@@ -767,7 +809,7 @@ class Controller extends ENIP {
                     
                 });
             }),
-            10000,
+            this.state.timeout_sp,
             readTagErr
         );
         
@@ -816,7 +858,7 @@ class Controller extends ENIP {
                     resolve(data);
                 });
             }),
-            10000,
+            this.state.timeout_sp,
             writeTagErr
         );
 
@@ -865,7 +907,7 @@ class Controller extends ENIP {
                     }            
                 });
             }),
-            10000,
+            this.state.timeout_sp,
             writeTagErr
         );
 
@@ -900,7 +942,7 @@ class Controller extends ENIP {
                         resolve(data);
                     });
                 }),
-                10000,
+                this.state.timeout_sp,
                 readTagGroupErr
             );
 
@@ -936,7 +978,7 @@ class Controller extends ENIP {
                             resolve(data);
                         });
                     }),
-                    10000,
+                    this.state.timeout_sp,
                     writeTagGroupErr
                 );
 
@@ -1245,6 +1287,10 @@ class Controller extends ENIP {
     //     // TODO: Implement Handler if Necessary
     // }
     // endregion
+}
+
+function getRandomInt(max) {
+    return Math.floor(Math.random() * Math.floor(max));
 }
 
 module.exports = Controller;
